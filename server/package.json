@@ -1,0 +1,19 @@
+{
+  "name": "webrtc-video-call-backend",
+  "version": "1.0.0",
+  "description": "Backend for a WebRTC Video-Call Conference",
+  "keywords": [
+    "WebRTC",
+    "Video-Call"
+  ],
+  "author": "Shashank Sangawar",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "nodemon": "^3.1.14",
+    "socket.io": "^4.8.4"
+  }
+}
