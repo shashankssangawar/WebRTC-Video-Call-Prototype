@@ -1,38 +1,190 @@
 import { Server } from "socket.io";
 
 const io = new Server(8000, {
-  cors: true,
+  cors: {
+    origin: "*",
+  },
 });
 
-const emailToSocketIdMap = new Map();
-const socketidToEmailMap = new Map();
+const connectionsMap = new Map();
 
 io.on("connection", (socket) => {
-  console.log(`Socket Connected`, socket.id);
-  socket.on("room:join", (data) => {
-    const { email, room } = data;
-    emailToSocketIdMap.set(email, socket.id);
-    socketidToEmailMap.set(socket.id, email);
-    io.to(room).emit("user:joined", { email, id: socket.id });
+  console.log("Socket Connected:", socket.id);
+
+  // ==================================================
+  // JOIN ROOM
+  // ==================================================
+  socket.on("room:join", ({ email, username, room }) => {
+    console.log(`${username} joined room ${room}`);
+    connectionsMap.set(email, {
+      id: socket.id,
+      username,
+      room,
+    });
+
     socket.join(room);
-    io.to(socket.id).emit("room:join", data);
-  });
+    // Notify everyone already in room
+    socket.to(room).emit(
+      "user:joined",
+      {
+        email,
+        username,
+        room,
+        id: socket.id,
+      }
+    );
 
-  socket.on("user:call", ({ to, offer }) => {
-    io.to(to).emit("incomming:call", { from: socket.id, offer });
-  });
+    // Confirm join to current user
+    socket.emit(
+      "room:join",
+      {
+        email,
+        username,
+        room,
+        id: socket.id,
+      }
+    );
+  }
+  );
 
-  socket.on("call:accepted", ({ to, ans }) => {
-    io.to(to).emit("call:accepted", { from: socket.id, ans });
-  });
+  // ==================================================
+  // INITIAL WEBRTC CALL
+  // ==================================================
 
-  socket.on("peer:nego:needed", ({ to, offer }) => {
-    console.log("peer:nego:needed", offer);
-    io.to(to).emit("peer:nego:needed", { from: socket.id, offer });
-  });
+  socket.on(
+    "user:call",
+    ({ to, offer }) => {
+      console.log(
+        `CALL ${socket.id} -> ${to}`
+      );
 
-  socket.on("peer:nego:done", ({ to, ans }) => {
-    console.log("peer:nego:done", ans);
-    io.to(to).emit("peer:nego:final", { from: socket.id, ans });
+      io.to(to).emit(
+        "incoming:call",
+        {
+          from: socket.id,
+          offer,
+        }
+      );
+    }
+  );
+
+  // ==================================================
+  // CALL ACCEPTED
+  // ==================================================
+
+  socket.on(
+    "call:accepted",
+    ({ to, ans }) => {
+      console.log(
+        `CALL ACCEPTED ${socket.id} -> ${to}`
+      );
+
+      io.to(to).emit(
+        "call:accepted",
+        {
+          from: socket.id,
+          ans,
+        }
+      );
+    }
+  );
+
+  // ==================================================
+  // ICE CANDIDATE
+  // ==================================================
+
+  socket.on(
+    "peer:ice-candidate",
+    ({ to, candidate }) => {
+      console.log(
+        `ICE ${socket.id} -> ${to}`
+      );
+
+      io.to(to).emit(
+        "peer:ice-candidate",
+        {
+          from: socket.id,
+          candidate,
+        }
+      );
+    }
+  );
+
+  // ==================================================
+  // NEGOTIATION NEEDED
+  // ==================================================
+
+  socket.on(
+    "peer:nego:needed",
+    ({ to, offer }) => {
+      console.log(
+        `NEGOTIATION NEEDED ${socket.id} -> ${to}`
+      );
+
+      io.to(to).emit(
+        "peer:nego:needed",
+        {
+          from: socket.id,
+          offer,
+        }
+      );
+    }
+  );
+
+  // ==================================================
+  // NEGOTIATION DONE
+  // ==================================================
+
+  socket.on(
+    "peer:nego:done",
+    ({ to, ans }) => {
+      console.log(
+        `NEGOTIATION DONE ${socket.id} -> ${to}`
+      );
+
+      io.to(to).emit(
+        "peer:nego:final",
+        {
+          from: socket.id,
+          ans,
+        }
+      );
+    }
+  );
+
+  // ==================================================
+  // DISCONNECT
+  // ==================================================
+
+  socket.on("disconnect", () => {
+    console.log(
+      "Socket Disconnected:",
+      socket.id
+    );
+
+    for (
+      const [
+        email,
+        connection,
+      ] of connectionsMap.entries()
+    ) {
+      if (
+        connection.id === socket.id
+      ) {
+        connectionsMap.delete(email);
+
+        io.to(
+          connection.room
+        ).emit(
+          "user:left",
+          {
+            id: socket.id,
+            email,
+          }
+        );
+
+        break;
+      }
+    }
   });
 });

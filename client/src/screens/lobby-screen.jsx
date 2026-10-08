@@ -10,6 +10,7 @@ export default function LobbyScreen() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
+    username: '',
     email: '',
     room: ''
   });
@@ -21,6 +22,9 @@ export default function LobbyScreen() {
 
   const handleJoinRoom = useCallback((data) => {
     if (data?.room) {
+      localStorage.setItem('room-id', data.room);
+      localStorage.setItem('username', data.username);
+      localStorage.setItem('email', data.email);
       navigate(`/room/${data.room}`);
     }
   }, [navigate]);
@@ -36,6 +40,15 @@ export default function LobbyScreen() {
     <form onSubmit={handleSubmitForm} className="w-full flex items-center justify-center min-h-screen" >
       <FieldGroup className={'max-w-sm mx-auto rounded-xl border border-border p-6'}>
         <FieldLegend className={'font-bold text-2xl!'}>Lobby</FieldLegend>
+        <Field>
+          <FieldLabel htmlFor="username">Dummy Username</FieldLabel>
+          <Input
+            id="username"
+            placeholder="John Doe"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+          />
+        </Field>
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
           <Input
@@ -56,7 +69,7 @@ export default function LobbyScreen() {
           />
         </Field>
         <Field>
-          <Button type="submit" className="hover:bg-primary/80 cursor-pointer">Sign in</Button>
+          <Button type="submit" className="hover:bg-primary/80 cursor-pointer">Join Room</Button>
         </Field>
       </FieldGroup>
     </form>
